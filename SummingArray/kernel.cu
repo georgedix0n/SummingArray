@@ -2,7 +2,7 @@
 #include "cuda_runtime.h"
 #include "device_launch_parameters.h"
 
-#include <stdio.h>
+#include "common.h"
 
 __global__ void addKernel(int *a, int *b, int *c, int size)
 {
@@ -23,15 +23,27 @@ __global__ void addKernel(int *a, int *b, int *c, int size)
 
 }
 
+
+void sum_array_cpu(int* a, int* b, int* c, int size)
+{
+	for (int i = 0; i < size; i++)
+	{
+		c[i] = a[i] + b[i];
+	}
+}
+
 int main()
 {
     int size = 10000;
     
     int NO_BYTES = size * sizeof(int);
 
-    int* h_a, * h_b, * gpu_results;
+    int* h_a, * h_b, * gpu_results, *h_c;
 
     h_a = (int*)malloc(NO_BYTES);
+    h_b = (int*)malloc(NO_BYTES);
+    h_c = (int*)malloc(NO_BYTES);
+    gpu_results = (int*)malloc(NO_BYTES);
 
     time_t t;
 
@@ -44,6 +56,8 @@ int main()
     {
         h_b[i] = (int)(rand() & 0xFF);
     }
+
+    sum_array_cpu(h_a, h_b, h_c, size);
 
     int* d_a, * d_b, * d_c;
     cudaMalloc((int**)&d_a, NO_BYTES);
@@ -58,6 +72,24 @@ int main()
 
     addKernel << <grid, block >> > (d_a, d_b, d_c, size);
     cudaDeviceSynchronize();
+
+    cudaMemcpy(gpu_results, d_c, NO_BYTES, cudaMemcpyDeviceToHost);
+
+    compare_arrays(gpu_results, h_c, size);
+
+
+    cudaFree(d_c);
+    cudaFree(d_b);
+    cudaFree(d_a);
+
+
+    free(gpu_results);
+    free(h_a);
+    free(h_b);
+    free(h_c);
+
+
+
 
 
 }
